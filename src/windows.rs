@@ -165,11 +165,18 @@ impl Capturer for WindowsCapturer {
             //        i += 1;
             //    }
             //}
-            (0..(width * height)).into_par_iter().for_each(|i| {
-                let x = i % width;
-                let y = i / width;
-                let RGBQUAD { rgbBlue, rgbGreen, rgbRed, .. } = slice[i];
-                image.put_pixel(x, y, Rgb([rgbRed, rgbGreen, rgbBlue]));
+            rayon::scope(|s| {
+            s.spawn(|_| {
+                    for chunk in slice.chunks_exact(width as usize) {
+                        let mut local_image = image.clone();
+                        for (i, RGBQUAD { rgbBlue, rgbGreen, rgbRed, .. }) in chunk.iter().enumerate() {
+                            let x = i % width as usize;
+                            let y = i / width as usize;
+                            local_image.put_pixel(x as u32, y as u32, Rgb([*rgbRed, *rgbGreen, *rgbBlue]));
+                        }
+                        image = local_image;
+                    }
+                });
             });
 
             if DeleteObject(compatible_bitmap as _) == 0 {
