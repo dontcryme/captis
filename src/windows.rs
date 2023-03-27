@@ -2,6 +2,7 @@
 
 use super::{Capturer, Display};
 use image::{Rgb, RgbImage};
+use rayon::prelude::*;
 use std::{error::Error, fmt, marker::PhantomData, mem, ptr};
 use winapi::{
     shared::{
@@ -152,18 +153,24 @@ impl Capturer for WindowsCapturer {
 
             let mut i = 0;
 
-            for y in 0..height {
-                for x in 0..width {
-                    let RGBQUAD {
-                        rgbBlue,
-                        rgbGreen,
-                        rgbRed,
-                        ..
-                    } = slice[i];
-                    image.put_pixel(x, y, Rgb([rgbRed, rgbGreen, rgbBlue]));
-                    i += 1;
-                }
-            }
+            // for y in 0..height {
+            //   for x in 0..width {
+            //        let RGBQUAD {
+            //            rgbBlue,
+            //            rgbGreen,
+            //            rgbRed,
+            //            ..
+            //        } = slice[i];
+            //      image.put_pixel(x, y, Rgb([rgbRed, rgbGreen, rgbBlue]));
+            //        i += 1;
+            //    }
+            //}
+            (0..(width * height)).into_par_iter().for_each(|i| {
+                let x = i % width;
+                let y = i / width;
+                let RGBQUAD { rgbBlue, rgbGreen, rgbRed, .. } = slice[i];
+                image.put_pixel(x, y, Rgb([rgbRed, rgbGreen, rgbBlue]));
+            });
 
             if DeleteObject(compatible_bitmap as _) == 0 {
                 return Err(DeleteObjectFailed);
